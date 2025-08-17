@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Invoice Generator - ADIL CONSULTING SERVICES</title>
+  <link rel="stylesheet" href="{{ url_for('static', filetype='css', filename='style.css') if false else url_for('static', filename='style.css') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="container">
+      <div class="brand">
+        <div class="brand-title">ADIL CONSULTING SERVICES</div>
+        <div class="brand-subtitle">Professional Business Solutions</div>
+      </div>
+      <div class="brand-meta">
+        <div>Address: 123 Skyline Tower, Dubai Marina, UAE</div>
+        <div>Phone: +916005796490</div>
+        <div>Email: peeradil6005@gmail.com</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h1>Create Invoice</h1>
+      <form id="invoice-form" action="/" method="POST" novalidate>
+        <!-- Client Details -->
+        <fieldset class="fieldset">
+          <legend>Client Details</legend>
+          <div class="grid grid-2">
+            <div class="form-control">
+              <label for="client_name">Client Name</label>
+              <input type="text" id="client_name" name="client_name" placeholder="Acme Corp" required />
+            </div>
+            <div class="form-control">
+              <label for="client_email">Client Email</label>
+              <input type="email" id="client_email" name="client_email" placeholder="billing@acme.com" required />
+            </div>
+            <div class="form-control grid-col-span-2">
+              <label for="client_address">Client Address</label>
+              <input type="text" id="client_address" name="client_address" placeholder="123 Market Street, City, Country" required />
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- Invoice Settings -->
+        <fieldset class="fieldset">
+          <legend>Invoice Settings</legend>
+          <div class="grid grid-3">
+            <div class="form-control">
+              <label for="due_date_offset">Due In (days)</label>
+              <input type="number" id="due_date_offset" name="due_date_offset" value="7" min="0" step="1" required />
+            </div>
+            <div class="form-control">
+              <label for="terms">Terms & Conditions</label>
+              <textarea id="terms" name="terms" rows="3" placeholder="Payment due within 30 days. Late payments may be subject to a 2% monthly fee."></textarea>
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- Items Table -->
+        <fieldset class="fieldset">
+          <legend>Invoice Items</legend>
+
+          <div class="items-header">
+            <div class="col desc">Description</div>
+            <div class="col qty">Qty</div>
+            <div class="col price">Unit Price</div>
+            <div class="col amount">Amount</div>
+            <div class="col actions">Actions</div>
+          </div>
+
+          <div id="items" class="items-body">
+            <!-- One default row -->
+            <div class="item-row">
+              <div class="col desc">
+                <input type="text" name="description" placeholder="Service description" required />
+              </div>
+              <div class="col qty">
+                <input type="number" name="qty" min="1" step="1" value="1" required />
+              </div>
+              <div class="col price">
+                <input type="number" name="price" min="0" step="0.01" value="0.00" required />
+              </div>
+              <div class="col amount">
+                <output class="row-amount">$0.00</output>
+              </div>
+              <div class="col actions">
+                <button type="button" class="btn btn-ghost remove-row" aria-label="Remove row">Remove</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="items-footer">
+            <button type="button" id="add-item" class="btn">+ Add Item</button>
+            <div class="total">
+              <span class="total-label">Total:</span>
+              <span id="total-amount">$0.00</span>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Generate PDF</button>
+          <button type="reset" class="btn btn-ghost" id="reset-form">Reset</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card help">
+      <h2>Notes</h2>
+      <ul>
+        <li>The PDF includes a QR code with invoice and client metadata.</li>
+        <li>Invoice number increments and is stored in last_invoice.txt.</li>
+        <li>Terms are split into bullet points by sentences in the PDF.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <div class="container">
+      <small>© {{ datetime.utcnow().year if false else '' }} ADIL CONSULTING SERVICES —</small>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      const itemsContainer = document.getElementById('items');
+      const addBtn = document.getElementById('add-item');
+      const totalEl = document.getElementById('total-amount');
+      const form = document.getElementById('invoice-form');
+
+      function currency(v) {
+        return '$' + (Number(v || 0).toFixed(2));
+      }
+
+      function computeRowAmount(row) {
+        const qty = parseFloat(row.querySelector('input[name="qty"]').value) || 0;
+        const price = parseFloat(row.querySelector('input[name="price"]').value) || 0;
+        const amount = qty * price;
+        row.querySelector('.row-amount').textContent = currency(amount);
+        return amount;
+      }
+
+      function computeTotal() {
+        let sum = 0;
+        itemsContainer.querySelectorAll('.item-row').forEach((row) => {
+          sum += computeRowAmount(row);
+        });
+        totalEl.textContent = currency(sum);
+      }
+
+      function attachRowEvents(row) {
+        row.querySelectorAll('input[name="qty"], input[name="price"], input[name="description"]').forEach((inp) => {
+          inp.addEventListener('input', computeTotal);
+        });
+        const removeBtn = row.querySelector('.remove-row');
+        removeBtn.addEventListener('click', () => {
+          if (itemsContainer.querySelectorAll('.item-row').length > 1) {
+            row.remove();
+            computeTotal();
+          } else {
+            // clear fields if only one row remains
+            row.querySelector('input[name="description"]').value = '';
+            row.querySelector('input[name="qty"]').value = '1';
+            row.querySelector('input[name="price"]').value = '0.00';
+            computeTotal();
+          }
+        });
+      }
+
+      function createRow() {
+        const row = document.createElement('div');
+        row.className = 'item-row';
+        row.innerHTML = `
+          <div class="col desc">
+            <input type="text" name="description" placeholder="Service description" required />
+          </div>
+          <div class="col qty">
+            <input type="number" name="qty" min="1" step="1" value="1" required />
+          </div>
+          <div class="col price">
+            <input type="number" name="price" min="0" step="0.01" value="0.00" required />
+          </div>
+          <div class="col amount">
+            <output class="row-amount">$0.00</output>
+          </div>
+          <div class="col actions">
+            <button type="button" class="btn btn-ghost remove-row" aria-label="Remove row">Remove</button>
+          </div>
+        `;
+        attachRowEvents(row);
+        return row;
+      }
+
+      addBtn.addEventListener('click', () => {
+        const row = createRow();
+        itemsContainer.appendChild(row);
+        computeTotal();
+      });
+
+      // Initial attach
+      itemsContainer.querySelectorAll('.item-row').forEach(attachRowEvents);
+      computeTotal();
+
+      // Guard: ensure at least one valid item before submit
+      form.addEventListener('submit', (e) => {
+        const rows = Array.from(itemsContainer.querySelectorAll('.item-row'));
+        const validItems = rows.filter((row) => {
+          const desc = row.querySelector('input[name="description"]').value.trim();
+          const qty = parseFloat(row.querySelector('input[name="qty"]').value);
+          const price = parseFloat(row.querySelector('input[name="price"]').value);
+          return desc && !isNaN(qty) && !isNaN(price);
+        });
+        if (validItems.length === 0) {
+          e.preventDefault();
+          alert('Please add at least one valid item with description, quantity, and unit price.');
+        }
+      });
+
+      // Optional: reset handler for clarity
+      document.getElementById('reset-form').addEventListener('click', () => {
+        // Reset to single clean row
+        itemsContainer.innerHTML = '';
+        itemsContainer.appendChild(createRow());
+        document.getElementById('due_date_offset').value = '7';
+        document.getElementById('terms').value = '';
+        computeTotal();
+      });
+    })();
+  </script>
+</body>
+</html>
