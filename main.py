@@ -114,7 +114,7 @@ def draw_modern_header(c):
     padding_left = 40
     logo_w, logo_h = 60, 60
     logo_x = padding_left
-    logo_y = 770  # slightly below page top to avoid clipping
+    logo_y = 775  # slightly below page top to avoid clipping
 
     # Draw logo (from same folder as this file)
     try:
